@@ -9,15 +9,18 @@
 #import "ViewController.h"
 #import "LibraryAPI.h"
 #import "Album+TableRepresentation.h"
+#import "HorizontalScroller.h"
+#import "AlbumView.h"
 
 
 // This is how to make your delegateion conform to protocol
-@interface ViewController () <UITableViewDataSource, UITableViewDelegate>
+@interface ViewController () <UITableViewDataSource, UITableViewDelegate, HorizontalScollerDelegate>
 {
     UITableView *dataTable;
     NSArray *allAlbums;
     NSDictionary *currentAlbumData;
     int currentAlbumIndex;
+    HorizontalScroller *scoller;
 }
 
 @end
@@ -41,7 +44,15 @@
     dataTable.dataSource = self;
     dataTable.backgroundView = nil;
     [self.view addSubview:dataTable];
-    [self showDataForAlbumAtIndex:currentAlbumIndex];
+    
+    // initialize the scroller
+    scoller = [[HorizontalScroller alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, 120)];
+    scoller.backgroundColor = [UIColor colorWithRed:0.24f green:0.35f blue:0.49f alpha:1];
+    scoller.delegate = self;
+    [self.view addSubview:scoller];
+    [self reloadScroller];
+    
+    [self showDataForAlbumAtIndex:0];
     
 }
 
@@ -86,6 +97,40 @@
 {
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
+}
+
+// It’s common practice to place methods that fit together after a #pragma mark directive.
+#pragma mark - HorizontalScrollerDelegate methods
+- (void)horizontalScroller:(HorizontalScroller *)scroller clickedViewAtIndex:(int)index
+{
+    currentAlbumIndex = index;
+    [self showDataForAlbumAtIndex:index];
+}
+
+- (NSInteger)numberOfViewsForHorizontalScroller:(HorizontalScroller *)scroller
+{
+    // the protocol method returning the number of views for the scroll view.
+    return allAlbums.count;
+}
+
+- (UIView *)horizontalScroller:(HorizontalScroller *)scroller viewAtIndex:(int)index
+{
+    Album *album = allAlbums[index];
+    
+    // create a new AlbumView and pass it to the HorizontalScroller.
+    return [[AlbumView alloc] initWithFrame:CGRectMake(0, 0, 100, 100) albumCover:album.coverUrl];
+}
+
+- (void)reloadScroller
+{
+    allAlbums = [[LibraryAPI sharedInstance] getAlbums];
+    if (currentAlbumIndex < 0) {
+        currentAlbumIndex = 0;
+    } else if (currentAlbumIndex >= allAlbums.count) {
+        currentAlbumIndex = allAlbums.count - 1;
+    }
+    [scoller reload];
+    [self showDataForAlbumAtIndex:currentAlbumIndex];
 }
 
 @end
