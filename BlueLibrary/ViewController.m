@@ -45,6 +45,8 @@
     dataTable.backgroundView = nil;
     [self.view addSubview:dataTable];
     
+    [self loadPreviousState];
+    
     // initialize the scroller
     scoller = [[HorizontalScroller alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, 120)];
     scoller.backgroundColor = [UIColor colorWithRed:0.24f green:0.35f blue:0.49f alpha:1];
@@ -54,6 +56,8 @@
     
     [self showDataForAlbumAtIndex:0];
     
+    // when the app is about to enter the background, the ViewController will automatically save the current state by calling saveCurrentState.
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(saveCurrentState) name:UIApplicationDidEnterBackgroundNotification object:nil];
 }
 
 // returns the number of rows to display in the table view, which matches the number of titles in the data structure.
@@ -99,6 +103,22 @@
     // Dispose of any resources that can be recreated.
 }
 
+// saves the current album index to NSUserDefaults – NSUserDefaults is a standard data store provided by iOS for saving application specific settings and data.
+- (void)saveCurrentState
+{
+    // When the user leaves the app and then comes back again, he wants it to be in the exact same state
+    // he left it. In order to do this we need to save the currently displayed album.
+    // Since it's only one piece of information we can use NSUserDefaults.
+    [[NSUserDefaults standardUserDefaults] setInteger:currentAlbumIndex forKey:@"currentAlbumIndex"];
+}
+
+// loads the previously saved index.
+- (void)loadPreviousState
+{
+    currentAlbumIndex = [[NSUserDefaults standardUserDefaults] integerForKey:@"currentAlbumIndex"];
+    [self showDataForAlbumAtIndex:currentAlbumIndex];
+}
+
 // It’s common practice to place methods that fit together after a #pragma mark directive.
 #pragma mark - HorizontalScrollerDelegate methods
 - (void)horizontalScroller:(HorizontalScroller *)scroller clickedViewAtIndex:(int)index
@@ -131,6 +151,16 @@
     }
     [scoller reload];
     [self showDataForAlbumAtIndex:currentAlbumIndex];
+}
+
+- (NSInteger)initialViewIndexForHorizontalScroller:(HorizontalScroller *)scroller
+{
+    return currentAlbumIndex;
+}
+
+- (void) dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 @end
