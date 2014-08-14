@@ -8,7 +8,8 @@
 
 #import <Foundation/Foundation.h>
 
-@interface Album : NSObject
+// declare that Album can be archived by conforming to the NSCoding protocol.
+@interface Album : NSObject <NSCoding>
 
 @property (nonatomic, copy, readonly) NSString *title, *artist, *genre, *coverUrl, *year;
 

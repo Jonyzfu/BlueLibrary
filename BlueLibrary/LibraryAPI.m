@@ -102,6 +102,11 @@
     
 }
 
+- (void)saveAlbums
+{
+    [persistencyManager saveAlbums];
+}
+
 - (void)dealloc
 {
     // remember to unsubscribe from this notification when your class is deallocated.
