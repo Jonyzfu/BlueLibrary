@@ -29,8 +29,32 @@
         indicator.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhiteLarge;
         [indicator startAnimating];
         [self addSubview:indicator];
+        
+        // as an observer for the image property of coverImage.
+        [coverImage addObserver:self forKeyPath:@"image" options:0 context:nil];
+         
+         
+        // sends a notification through the NSNotificationCenter singleton.
+        // That’s all the information you need to perform the cover download task.
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"BLDownloadImageNotification" object:self userInfo:@{@"imageView": coverImage, @"coverUrl":albumCover}];
+        
     }
     return self;
+}
+
+// You must implement this method in every class acting as an observer.
+// The system executes this method every time the observed property changes.
+// when an image is loaded, the spinner will stop spinning.
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+    if ([keyPath isEqualToString:@"image"]) {
+        [indicator stopAnimating];
+    }
+}
+
+- (void)dealloc
+{
+    [coverImage removeObserver:self forKeyPath:@"image"];
 }
 
 /*

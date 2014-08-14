@@ -28,6 +28,10 @@
         persistencyManager = [[PersistencyManager alloc] init];
         httpClient = [[HTTPClient alloc] init];
         isOnline = NO;
+        
+        // The observer.
+        // Every time an AlbumView class posts a BLDownloadImageNotification notification, since LibraryAPI has registered as an observer for the same notification, the system notifies LibraryAPI. And LibraryAPI executes downloadImage: in response.
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(downloadImage:) name:@"BLDownloadImageNotification" object:nil];
     }
     return self;
 }
@@ -69,6 +73,40 @@
     if (isOnline) {
         [httpClient postRequest:@"/api/deleteAlbum" body:[@(index) description]];
     }
+}
+
+- (void)downloadImage:(NSNotification *)notification
+{
+    // downloadImage is executed via notifications.
+    // The UIImageView and image URL are retrieved from the notification.
+    UIImageView *imageView = notification.userInfo[@"imageView"];
+    NSString *coverUrl = notification.userInfo[@"coverUrl"];
+    
+    // Retrieve the image from the PersistencyManager if it’s been downloaded previously.
+    imageView.image = [persistencyManager getImage:[coverUrl lastPathComponent]];
+    
+    
+    // Facade pattern to hide the complexity of downloading an image from the other classes.
+    if (imageView.image == nil) {
+        // If the image hasn’t already been downloaded, then retrieve it using HTTPClient.
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            UIImage *image = [httpClient downloadImage:coverUrl];
+            
+            // When the download is complete, display the image in the image view and use the PersistencyManager to save it locally.
+            dispatch_async(dispatch_get_main_queue(), ^{
+                imageView.image = image;
+                [persistencyManager saveImage:image filename:[coverUrl lastPathComponent]];
+            });
+        });
+    }
+    
+}
+
+- (void)dealloc
+{
+    // remember to unsubscribe from this notification when your class is deallocated.
+    // When this class is deallocated, it removes itself as an observer from all notifications it had registered for.
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 @end

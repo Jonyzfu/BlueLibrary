@@ -52,4 +52,20 @@
     [albums removeObjectAtIndex:index];
 }
 
+// The downloaded images will be saved in the Documents directory
+- (void)saveImage:(UIImage *)image filename:(NSString *)filename
+{
+    filename = [NSHomeDirectory() stringByAppendingFormat:@"/Documents/%@", filename];
+    NSData *data = UIImagePNGRepresentation(image);
+    [data writeToFile:filename atomically:YES];
+}
+
+// will return nil if a matching file is not found in the Documents directory.
+- (UIImage *)getImage:(NSString *)filename
+{
+    filename = [NSHomeDirectory() stringByAppendingFormat:@"/Documents/%@", filename];
+    NSData *data = [NSData dataWithContentsOfFile:filename];
+    return [UIImage imageWithData:data];
+}
+
 @end
