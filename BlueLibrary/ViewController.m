@@ -21,6 +21,10 @@
     NSDictionary *currentAlbumData;
     int currentAlbumIndex;
     HorizontalScroller *scoller;
+    
+    UIToolbar *toolbar;
+    // We will use this array as a stack to push and pop operation for the undo option
+    NSMutableArray *undoStack;
 }
 
 @end
@@ -33,6 +37,16 @@
 	// Change the background color to a nice navy blue color.
     self.view.backgroundColor = [UIColor colorWithRed:0.76f green:0.81f blue:0.87f alpha:1];
     currentAlbumIndex = 0;
+    
+    toolbar = [[UIToolbar alloc] init];
+    UIBarButtonItem *undoItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemUndo target:self action:@selector(undoAction)];
+    undoItem.enabled = NO;
+    UIBarButtonItem *space = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
+    UIBarButtonItem *delete = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemTrash target:self action:@selector(deleteAlbum)];
+    [toolbar setItems:@[undoItem, space, delete]];
+    [self.view addSubview:toolbar];
+    undoStack = [[NSMutableArray alloc] init];
+    
     
     // Get a list of all the albums via the API. You don’t use PersistencyManager directly!
     allAlbums = [[LibraryAPI sharedInstance] getAlbums];
@@ -58,6 +72,59 @@
     
     // when the app is about to enter the background, the ViewController will automatically save the current state by calling saveCurrentState.
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(saveCurrentState) name:UIApplicationDidEnterBackgroundNotification object:nil];
+}
+
+
+- (void)viewWillLayoutSubviews
+{
+    toolbar.frame = CGRectMake(0, self.view.frame.size.height - 44, self.view.frame.size.width, 44);
+    dataTable.frame = CGRectMake(0, 130, self.view.frame.size.width, self.view.frame.size.height - 200);
+}
+
+- (void)addAlbum:(Album *)album atIndex:(int)index
+{
+    [[LibraryAPI sharedInstance] addAlbum:album atIndex:index];
+    currentAlbumIndex = index;
+    [self reloadScroller];
+}
+
+- (void)deleteAlbum
+{
+    // Get the album to delete.
+    Album *deleteAlbum = allAlbums[currentAlbumIndex];
+    
+    // Define an object of type NSMethodSignature to create the NSInvocation, which will be used to reverse the delete action if the user later decides to undo a deletion.
+    NSMethodSignature *sig = [self methodSignatureForSelector:@selector(addAlbum:atIndex:)];
+    NSInvocation *undoAction = [NSInvocation invocationWithMethodSignature:sig];
+    [undoAction setTarget:self];
+    [undoAction setSelector:@selector(addAlbum:atIndex:)];
+    [undoAction setArgument:&deleteAlbum atIndex:2];
+    [undoAction setArgument:&currentAlbumIndex atIndex:3];
+    [undoAction retainArguments];
+    
+    // This action will be added to the end of the array, just as in a normal stack.
+    [undoStack addObject:undoAction];
+    
+    // Use LibraryAPI to delete the album from the data structure and reload the scroller.
+    [[LibraryAPI sharedInstance] deleteAlbumAtIndex:currentAlbumIndex];
+    [self reloadScroller];
+    
+    // Since there’s an action in the undo stack, you need to enable the undo button.
+    [toolbar.items[0] setEnabled:YES];
+}
+
+- (void)undoAction
+{
+    // This is also a good place to test out whether changes to your album data is retained between sessions.
+    if (undoStack.count > 0) {
+        NSInvocation *invocation = [undoStack lastObject];
+        [undoStack removeLastObject];
+        [invocation invoke];
+    }
+    
+    if (undoStack.count == 0) {
+        [toolbar.items[0] setEnabled:NO];
+    }
 }
 
 // returns the number of rows to display in the table view, which matches the number of titles in the data structure.
